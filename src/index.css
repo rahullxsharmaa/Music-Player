@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+#range::-webkit-slider-runnable-track{
+    border: none;
+    border-radius: 20px;
+    background-color: white;
+}
