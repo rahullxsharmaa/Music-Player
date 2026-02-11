@@ -1,85 +1,147 @@
-import React, { useContext, useEffect, useState,useRef } from 'react'
-import { songsData } from '../songs.js'
-import musicImg from '../assets/musicanim.webp'
-import { GiPreviousButton } from "react-icons/gi";
-import { GiNextButton } from "react-icons/gi";
-import { FaPlay } from "react-icons/fa";
-import { FaPause } from "react-icons/fa";
-import { dataContext } from '../context/UserContext.jsx';
-import Card from '../components/Card.jsx';
+import React, { useEffect, useState } from 'react'
+import { usePlayer } from '../context/UserContext'
+import Card from '../components/Card'
+import SongRow from '../components/SongRow'
 
 function Home() {
-
-  let { audioRef, playingSong, playSong, pauseSong, prevSong, nextSong, index } = useContext(dataContext)
-
-  const [range, setRange] = useState(0)
-
+  const { API_BASE, playNow } = usePlayer()
+  const [trending, setTrending] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
-    const updateProgress = () => {
-      let duration = audioRef.current.duration || 0
-      let currentTime = audioRef.current.currentTime || 0
-      let progressPercentage = (currentTime / duration) * 100 || 0
-      setRange(progressPercentage)
+    async function fetchTrending() {
+      try {
+        setLoading(true)
+        const res = await fetch(`${API_BASE}/trending?region=IN`)
+        const data = await res.json()
+        setTrending(data)
+        setError(null)
+      } catch (err) {
+        console.error('Failed to fetch trending:', err)
+        setError('Could not load trending music. Make sure the server is running on port 3001.')
+      } finally {
+        setLoading(false)
+      }
     }
+    fetchTrending()
+  }, [API_BASE])
 
-    audioRef.current.addEventListener("timeupdate", updateProgress)
-
-  })
-
-  function handleRange(e) {
-    let newRange = e.target.value
-    setRange(newRange)
-    let duration = audioRef.current.duration
-    audioRef.current.currentTime = (duration * newRange) / 100
-    console.log(audioRef.current.currentTime)
-  }
+  const topPicks = trending.slice(0, 8)
+  const chartList = trending.slice(0, 20)
+  const moreTrending = trending.slice(8, 16)
 
   return (
-    <div className='w-full h-screen bg-black flex '>
-      <div className='w-full md:w-[50%] h-full flex justify-start items-center pt-[20px] md:pt-[120px] flex-col gap-[30px]'>
-        <h1 className='text-white font-semibold text-[20px]'>Now Playing</h1>
-        <div className='w-[80%] max-w-[250px] md:w-[300px] h-[250px] object-fill rounded-md overflow-hidden relative'>
-          <img src={songsData[index].image} className='w-[100%] h-[100%]' alt='' />
-          {playingSong ? <div className='w-full h-full bg-black absolute top-0 opacity-[0.5] flex justify-center items-center '>
-            <img src={musicImg} className='w-[50%] ' alt="" />
-          </div> : null}
-          
-        </div>
-        <div >
-          <div className='text-white text-[30px] font-semibold'>{songsData[index].name}</div>
-          <div className='text-gray-400 text-[18px] text-center'>{songsData[index].singer}</div>
-        </div>
-        <div className='w-full flex justify-center items-center'>
+    <div className="fade-in" style={{ padding: '24px 32px' }}>
+      {/* Header */}
+      <h1 style={{
+        fontSize: '28px',
+        fontWeight: '700',
+        marginBottom: '24px',
+        color: 'var(--text-primary)'
+      }}>
+        Good {getTimeGreeting()}
+      </h1>
 
-          <input value={range} type='range' id='range' className='appearance-none w-[50%] h-[7px] rounded-md bg-gray-600' onChange={(e) => handleRange(e)} />
-          <div className={`bg-white w-${range} h-[100%] absolute left-0`}></div>
+      {/* Error State */}
+      {error && (
+        <div style={{
+          padding: '16px 20px',
+          background: 'var(--bg-surface)',
+          borderRadius: 'var(--radius-md)',
+          color: 'var(--text-secondary)',
+          fontSize: '14px',
+          marginBottom: '24px',
+          border: '1px solid var(--border)'
+        }}>
+          {error}
         </div>
-        <div className='text-white flex justify-center items-center gap-[20px]'>
+      )}
 
-
-          <GiPreviousButton onClick={() => prevSong()} className='w-[28px] h-[28px] hover:text-gray-400 transition-all cursor-pointer' />
-          {!playingSong ? <div onClick={() => playSong()} className='w-[50px] h-[50px] rounded-full bg-white text-black flex justify-center items-center hover:bg-gray-400 transition-all cursor-pointer'>
-            <FaPlay />
+      {/* Quick Picks Carousel */}
+      <Section title="Quick Picks">
+        {loading ? (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="skeleton" style={{ width: '180px', height: '240px', flexShrink: 0 }} />
+            ))}
           </div>
-            :
-            <div onClick={() => pauseSong()} className='w-[50px] h-[50px] rounded-full bg-white text-black flex justify-center items-center hover:bg-gray-400 transition-all cursor-pointer'>
-              <FaPause />
-            </div>}
+        ) : (
+          <div style={{
+            display: 'flex',
+            gap: '4px',
+            overflowX: 'auto',
+            paddingBottom: '8px',
+            scrollbarWidth: 'none'
+          }}>
+            {topPicks.map(song => (
+              <Card key={song.videoId} song={song} />
+            ))}
+          </div>
+        )}
+      </Section>
 
+      {/* Charts */}
+      <Section title="Top Charts">
+        {loading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="skeleton" style={{ height: '56px', borderRadius: 'var(--radius-md)' }} />
+            ))}
+          </div>
+        ) : (
+          <div>
+            {chartList.map((song, i) => (
+              <SongRow key={song.videoId} song={song} index={i} showIndex />
+            ))}
+          </div>
+        )}
+      </Section>
 
-          <GiNextButton onClick={() => nextSong()} className='w-[28px] h-[28px] hover:text-gray-400 transition-all cursor-pointer' />
-        </div>
-      </div>
+      {/* More Trending */}
+      {moreTrending.length > 0 && (
+        <Section title="Trending">
+          <div style={{
+            display: 'flex',
+            gap: '4px',
+            overflowX: 'auto',
+            paddingBottom: '8px',
+            scrollbarWidth: 'none'
+          }}>
+            {moreTrending.map(song => (
+              <Card key={song.videoId + '-trending'} song={song} />
+            ))}
+          </div>
+        </Section>
+      )}
 
-
-
-
-      <div className='w-[100%] md:w-[50%] h-full bg-black-500 hidden md:flex pt-[120px]'>
-            <Card/>
-      </div>
+      {/* Bottom padding */}
+      <div style={{ height: '40px' }} />
     </div>
   )
+}
+
+function Section({ title, children }) {
+  return (
+    <div style={{ marginBottom: '32px' }}>
+      <h2 style={{
+        fontSize: '20px',
+        fontWeight: '600',
+        marginBottom: '16px',
+        color: 'var(--text-primary)'
+      }}>
+        {title}
+      </h2>
+      {children}
+    </div>
+  )
+}
+
+function getTimeGreeting() {
+  const h = new Date().getHours()
+  if (h < 12) return 'morning'
+  if (h < 17) return 'afternoon'
+  return 'evening'
 }
 
 export default Home
