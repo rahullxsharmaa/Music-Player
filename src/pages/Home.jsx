@@ -14,9 +14,15 @@ function Home() {
       try {
         setLoading(true)
         const res = await fetch(`${API_BASE}/trending?region=IN`)
+        if (!res.ok) throw new Error('Server error')
         const data = await res.json()
-        setTrending(data)
-        setError(null)
+        if (Array.isArray(data)) {
+          setTrending(data)
+          setError(null)
+        } else {
+          setTrending([])
+          setError('Invalid data received')
+        }
       } catch (err) {
         console.error('Failed to fetch trending:', err)
         setError('Could not load trending music. Make sure the server is running on port 3001.')

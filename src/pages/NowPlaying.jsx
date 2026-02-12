@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react'
 import { usePlayer } from '../context/UserContext'
+import { handleImageErrorHighRes } from '../utils/imageUtils'
 import { useNavigate } from 'react-router-dom'
 import { IoChevronDown } from "react-icons/io5"
 
@@ -24,6 +25,7 @@ function NowPlaying() {
             <img
                 src={currentSong.thumbnail}
                 alt={currentSong.title}
+                onError={(e) => handleImageErrorHighRes(e, currentSong.thumbnail)}
                 style={{
                     width: '100%',
                     height: '100%',

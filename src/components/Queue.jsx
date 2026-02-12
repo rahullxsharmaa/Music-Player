@@ -2,6 +2,7 @@ import React from 'react'
 import { usePlayer } from '../context/UserContext'
 import { IoClose } from "react-icons/io5"
 import { FaPlay, FaPause } from "react-icons/fa"
+import { handleImageErrorHighRes } from '../utils/imageUtils'
 
 function Queue({ onClose }) {
     const { queue, queueIndex, playFromQueue, removeFromQueue, currentSong, isPlaying, togglePlay } = usePlayer()
@@ -70,6 +71,7 @@ function Queue({ onClose }) {
                         <img
                             src={currentSong.thumbnail}
                             alt={currentSong.title}
+                            onError={(e) => handleImageErrorHighRes(e, currentSong.thumbnail)}
                             style={{
                                 width: '48px',
                                 height: '48px',
@@ -87,7 +89,7 @@ function Queue({ onClose }) {
                                 {currentSong.title}
                             </div>
                             <div className="text-ellipsis-1" style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                                {currentSong.artist}
+                                {typeof currentSong.artist === 'object' ? currentSong.artist.name : currentSong.artist}
                             </div>
                         </div>
                         <button onClick={togglePlay} style={{
@@ -157,6 +159,7 @@ function Queue({ onClose }) {
                             <img
                                 src={song.thumbnail}
                                 alt={song.title}
+                                onError={(e) => handleImageErrorHighRes(e, song.thumbnail)}
                                 style={{
                                     width: '40px',
                                     height: '40px',
@@ -178,7 +181,7 @@ function Queue({ onClose }) {
                                     color: 'var(--text-secondary)',
                                     marginTop: '1px'
                                 }}>
-                                    {song.artist}
+                                    {typeof song.artist === 'object' ? song.artist.name : song.artist}
                                 </div>
                             </div>
                             <button
