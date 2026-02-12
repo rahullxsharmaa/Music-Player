@@ -1,5 +1,6 @@
 import React from 'react'
 import { usePlayer } from '../context/UserContext'
+import { handleImageErrorHighRes } from '../utils/imageUtils'
 import { FaPlay } from "react-icons/fa"
 import { GoHeart, GoHeartFill } from "react-icons/go"
 
@@ -40,6 +41,7 @@ function Card({ song, size = 'normal' }) {
                 <img
                     src={song.thumbnail}
                     alt={song.title}
+                    onError={(e) => handleImageErrorHighRes(e, song.thumbnail)}
                     loading="lazy"
                     style={{
                         width: '100%',
@@ -121,7 +123,7 @@ function Card({ song, size = 'normal' }) {
                     color: 'var(--text-secondary)',
                     flex: 1
                 }}>
-                    {song.artist}
+                    {typeof song.artist === 'object' ? song.artist.name : song.artist}
                 </div>
                 <button
                     onClick={(e) => { e.stopPropagation(); toggleLike(song) }}

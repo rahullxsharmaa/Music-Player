@@ -1,5 +1,6 @@
 import React from 'react'
 import { usePlayer } from '../context/UserContext'
+import { handleImageErrorHighRes } from '../utils/imageUtils'
 import { FaPlay, FaPause } from "react-icons/fa"
 import { GoHeart, GoHeartFill } from "react-icons/go"
 
@@ -68,6 +69,7 @@ function SongRow({ song, index, showIndex = false }) {
             <img
                 src={song.thumbnail}
                 alt={song.title}
+                onError={(e) => handleImageErrorHighRes(e, song.thumbnail)}
                 loading="lazy"
                 style={{
                     width: '44px',
@@ -95,7 +97,7 @@ function SongRow({ song, index, showIndex = false }) {
                     color: 'var(--text-secondary)',
                     marginTop: '2px'
                 }}>
-                    {song.artist}
+                    {typeof song.artist === 'object' ? song.artist.name : song.artist}
                 </div>
             </div>
 

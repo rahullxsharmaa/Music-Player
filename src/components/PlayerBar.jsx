@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useRef } from 'react'
 import { usePlayer } from '../context/UserContext'
+import { handleImageErrorHighRes } from '../utils/imageUtils'
 import { useNavigate } from 'react-router-dom'
 import { FaPlay, FaPause } from "react-icons/fa"
 import { IoPlaySkipBack, IoPlaySkipForward } from "react-icons/io5"
@@ -155,6 +156,7 @@ function PlayerBar({ onQueueToggle, showQueue }) {
                     <img
                         src={currentSong.thumbnail}
                         alt={currentSong.title}
+                        onError={(e) => handleImageErrorHighRes(e, currentSong.thumbnail)}
                         style={{
                             width: '52px',
                             height: '52px',
@@ -177,7 +179,7 @@ function PlayerBar({ onQueueToggle, showQueue }) {
                             color: 'var(--text-secondary)',
                             lineHeight: 1.3
                         }}>
-                            {currentSong.artist}
+                            {typeof currentSong.artist === 'object' ? currentSong.artist.name : currentSong.artist}
                         </p>
                     </div>
                 </div>

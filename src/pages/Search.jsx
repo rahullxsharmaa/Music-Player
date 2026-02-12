@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { usePlayer } from '../context/UserContext'
 import SongRow from '../components/SongRow'
 import Card from '../components/Card'
+import { handleImageErrorHighRes } from '../utils/imageUtils'
 import { FiSearch, FiX } from "react-icons/fi"
 
 function Search() {
@@ -234,6 +235,7 @@ function Search() {
               <img
                 src={results[0].thumbnail}
                 alt={results[0].title}
+                onError={(e) => handleImageErrorHighRes(e, results[0].thumbnail)}
                 style={{
                   width: '88px',
                   height: '88px',
@@ -362,6 +364,7 @@ function Search() {
                       <img
                         src={cat.songs[0].thumbnail}
                         alt=""
+                        onError={(e) => handleImageErrorHighRes(e, cat.songs[0].thumbnail)}
                         style={{
                           position: 'absolute',
                           right: '-10px',

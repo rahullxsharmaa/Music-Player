@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import YTMusic from 'ytmusic-api';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -17,23 +16,9 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json());
 
-// --- ytmusic-api instance ---
-const ytmusic = new YTMusic();
-let ytmusicReady = false;
-
-(async () => {
-    try {
-        await ytmusic.initialize();
-        ytmusicReady = true;
-        console.log('[OK] ytmusic-api initialized');
-    } catch (err) {
-        console.error('[FAIL] ytmusic-api init failed:', err.message);
-    }
-})();
-
-
-//  yt-dlp helper
-
+// ──────────────────────────────────────────────
+//  Helpers
+// ──────────────────────────────────────────────
 
 function getYtDlpCmd(videoId, extraArgs = '') {
     const cookiePath = path.join(__dirname, 'cookies.txt');
@@ -55,115 +40,89 @@ function hiRes(url) {
     return url;
 }
 
+// Robust search using yt-dlp
+async function searchWithYtDlp(query, limit = 10) {
+    try {
+        // Fetch more results than needed to allow for filtering
+        const fetchLimit = limit * 2;
+        const cmd = `yt-dlp --print "id: %(id)s | title: %(title)s | artist: %(uploader)s | duration: %(duration)s" --flat-playlist "ytsearch${fetchLimit}:${query}"`;
+        const { stdout } = await execAsync(cmd);
 
+        const parsed = stdout.split('\n').filter(line => line.trim()).map(line => {
+            const parts = line.split(' | ');
+            const getVal = (key) => parts.find(p => p.startsWith(key))?.split(': ')[1] || '';
+            const id = getVal('id');
+            if (!id) return null;
+
+            const duration = parseFloat(getVal('duration')) || 0;
+
+            // Filter out Shorts (< 60s) and Long Mixes (> 15 mins)
+            // This mimics "Song" search
+            if (duration < 60 || duration > 900) return null;
+
+            return {
+                videoId: id,
+                name: getVal('title'),
+                artist: { name: getVal('artist') },
+                thumbnails: [{ url: `https://i.ytimg.com/vi/${id}/hqdefault.jpg` }],
+                duration: duration
+            };
+        }).filter(Boolean);
+
+        // Return only requested amount
+        return parsed.slice(0, limit);
+    } catch (e) {
+        console.error(`[Desired Search] yt-dlp failed for ${query}: ${e.message}`);
+        return [];
+    }
+}
+
+// ──────────────────────────────────────────────
 //  Trending / Home
-
+// ──────────────────────────────────────────────
 
 app.get('/api/trending', async (req, res) => {
     try {
-        if (!ytmusicReady) {
-            return res.json([]);
-        }
+        console.log('[TRENDING] Fetching Global Top Songs via yt-dlp...');
 
         const results = [];
         const seen = new Set();
-
-        const addSong = (item) => {
-            if (!item || !item.videoId || seen.has(item.videoId)) return;
-            seen.add(item.videoId);
-            results.push({
-                videoId: item.videoId,
-                title: item.name || '',
-                artist: item.artist?.name || 'Unknown',
-                thumbnail: hiRes(item.thumbnails?.[item.thumbnails.length - 1]?.url || ''),
-                duration: item.duration || 0
-            });
+        const addSongs = (songs) => {
+            for (const s of songs) {
+                if (!seen.has(s.videoId)) {
+                    seen.add(s.videoId);
+                    results.push({
+                        videoId: s.videoId,
+                        title: s.name,
+                        artist: s.artist.name,
+                        thumbnail: hiRes(s.thumbnails[0].url),
+                        duration: s.duration
+                    });
+                }
+            }
         };
 
-        // Strategy 1: Get YouTube Music home sections (with null-safety)
-        try {
-            const sections = await ytmusic.getHomeSections();
-            if (Array.isArray(sections)) {
-                for (const section of sections) {
-                    if (!section || !Array.isArray(section.contents)) continue;
-                    for (const item of section.contents) {
-                        if (item && item.type === 'SONG') {
-                            addSong(item);
-                        }
-                    }
-                }
-            }
-        } catch (homeErr) {
-            console.log('[TRENDING] getHomeSections failed:', homeErr.message);
-        }
+        // Fetch "Global Top Songs 2025" and some specialized charts
+        const p1 = searchWithYtDlp('global top songs 2025', 10);
+        const p2 = searchWithYtDlp('top hits 2025', 10);
+        const p3 = searchWithYtDlp('trending music video', 5);
 
-        // Strategy 2: Search for popular music to fill up
-        if (results.length < 20) {
-            const queries = [
-                'top hits 2025',
-                'latest bollywood songs',
-                'trending hindi songs 2025',
-                'top punjabi songs 2025',
-                'new english songs 2025',
-                'popular songs India'
-            ];
+        const [r1, r2, r3] = await Promise.all([p1, p2, p3]);
 
-            // Helper: Search using yt-dlp (fallback if API fails)
-            async function searchWithYtDlp(query) {
-                try {
-                    const cmd = `yt-dlp --print "id: %(id)s | title: %(title)s | artist: %(uploader)s | duration: %(duration)s" --flat-playlist "ytsearch5:${query}"`;
-                    const { stdout } = await execAsync(cmd);
-                    return stdout.split('\n').filter(line => line.trim()).map(line => {
-                        const parts = line.split(' | ');
-                        const getVal = (key) => parts.find(p => p.startsWith(key))?.split(': ')[1] || '';
-                        const id = getVal('id');
-                        if (!id) return null;
-                        return {
-                            videoId: id,
-                            name: getVal('title'),
-                            artist: { name: getVal('artist') },
-                            thumbnails: [{ url: `https://i.ytimg.com/vi/${id}/hqdefault.jpg` }],
-                            duration: parseFloat(getVal('duration')) || 0
-                        };
-                    }).filter(Boolean);
-                } catch (e) {
-                    console.error(`[Search Fallback] yt-dlp failed for ${query}: ${e.message}`);
-                    return [];
-                }
-            }
+        addSongs(r1);
+        addSongs(r2);
+        addSongs(r3);
 
-            const searchPromises = queries.map(async q => {
-                try {
-                    return await ytmusic.searchSongs(q);
-                } catch (err) {
-                    console.error(`[TRENDING] API failed for "${q}", trying yt-dlp...`);
-                    return await searchWithYtDlp(q);
-                }
-            });
-
-            const allResults = await Promise.all(searchPromises);
-            for (const batch of allResults) {
-                if (!Array.isArray(batch)) continue;
-                for (const item of batch) {
-                    addSong(item);
-                }
-            }
-            console.log(`[TRENDING] Final results count: ${results.length}`);
-        }
-
-        // Strategy 3: Static fallback if everything failed
         if (results.length === 0) {
-            console.log('[TRENDING] All strategies failed, using static fallback');
+            console.log('[TRENDING] Fallback to static list');
             results.push(
                 { videoId: 'k4yXQkGDbLY', title: 'Channa Mereya', artist: 'Arijit Singh', thumbnail: 'https://i.ytimg.com/vi/k4yXQkGDbLY/maxresdefault.jpg', duration: 289 },
-                { videoId: 'TUXf8wBf7II', title: 'Kesariya', artist: 'Arijit Singh', thumbnail: 'https://i.ytimg.com/vi/TUXf8wBf7II/maxresdefault.jpg', duration: 268 },
-                { videoId: 'BddP6PYo2gs', title: 'Kesariya (Dance Mix)', artist: 'Arijit Singh', thumbnail: 'https://i.ytimg.com/vi/BddP6PYo2gs/maxresdefault.jpg', duration: 245 },
-                { videoId: 'axTg5t3a6sg', title: 'Heeriye', artist: 'Arijit Singh', thumbnail: 'https://i.ytimg.com/vi/axTg5t3a6sg/maxresdefault.jpg', duration: 194 },
-                { videoId: '8q-0W-2h1mE', title: 'Chaleya', artist: 'Arijit Singh', thumbnail: 'https://i.ytimg.com/vi/8q-0W-2h1mE/maxresdefault.jpg', duration: 200 }
+                { videoId: 'TUXf8wBf7II', title: 'Kesariya', artist: 'Arijit Singh', thumbnail: 'https://i.ytimg.com/vi/TUXf8wBf7II/maxresdefault.jpg', duration: 268 }
             );
         }
 
-        res.json(results.slice(0, 30));
+        console.log(`[TRENDING] Serving ${results.length} songs`);
+        res.json(results);
     } catch (err) {
         console.error('Trending error:', err.message);
         res.status(500).json({ error: 'Failed to fetch trending' });
@@ -171,47 +130,34 @@ app.get('/api/trending', async (req, res) => {
 });
 
 
-//  Browse categories (for Search page)
-
+// ──────────────────────────────────────────────
+//  Browse categories (Home Logic)
+// ──────────────────────────────────────────────
 
 app.get('/api/browse', async (req, res) => {
     try {
-        if (!ytmusicReady) {
-            return res.json([]);
-        }
-
-        // Curated browse categories like YT Music
         const categories = [
             { name: 'Bollywood Hits', query: 'bollywood hits 2025' },
             { name: 'Punjabi Beats', query: 'top punjabi songs 2025' },
             { name: 'English Pop', query: 'english pop hits 2025' },
             { name: 'Romantic Hits', query: 'romantic hindi songs' },
             { name: 'Party Mix', query: 'party songs hindi 2025' },
-            { name: 'Chill Vibes', query: 'chill lofi indian songs' },
-            { name: 'Old School', query: '90s bollywood songs' },
-            { name: 'Workout Mix', query: 'workout songs hindi' }
+            { name: 'Lo-Fi Vibes', query: 'lofi hindi songs' }
         ];
 
         const browseResults = await Promise.all(
             categories.map(async (cat) => {
-                try {
-                    const songs = await ytmusic.searchSongs(cat.query);
-                    return {
-                        name: cat.name,
-                        songs: (songs || [])
-                            .filter(s => s && s.videoId)
-                            .slice(0, 8)
-                            .map(s => ({
-                                videoId: s.videoId,
-                                title: s.name || '',
-                                artist: s.artist?.name || 'Unknown',
-                                thumbnail: hiRes(s.thumbnails?.[s.thumbnails.length - 1]?.url || ''),
-                                duration: s.duration || 0
-                            }))
-                    };
-                } catch {
-                    return { name: cat.name, songs: [] };
-                }
+                const songs = await searchWithYtDlp(cat.query, 6);
+                return {
+                    name: cat.name,
+                    songs: songs.map(s => ({
+                        videoId: s.videoId,
+                        title: s.name,
+                        artist: s.artist.name,
+                        thumbnail: hiRes(s.thumbnails[0].url),
+                        duration: s.duration
+                    }))
+                };
             })
         );
 
@@ -223,32 +169,26 @@ app.get('/api/browse', async (req, res) => {
 });
 
 
-//  Search (ytmusic-api — songs only)
-
+// ──────────────────────────────────────────────
+//  Search (yt-dlp)
+// ──────────────────────────────────────────────
 
 app.get('/api/search', async (req, res) => {
     try {
-        if (!ytmusicReady) {
-            return res.status(503).json({ error: 'ytmusic-api not ready yet' });
-        }
-
         const query = req.query.q;
-        if (!query) {
-            return res.status(400).json({ error: 'Missing query parameter q' });
-        }
+        if (!query) return res.json([]);
 
-        const results = await ytmusic.searchSongs(query);
+        console.log(`[SEARCH] Searching for: ${query}`);
+        const rawResults = await searchWithYtDlp(query, 20);
 
-        const formatted = (results || [])
-            .filter(item => item && item.videoId)
-            .map(item => ({
-                videoId: item.videoId,
-                title: item.name || '',
-                artist: item.artist?.name || 'Unknown',
-                thumbnail: hiRes(item.thumbnails?.[item.thumbnails.length - 1]?.url || ''),
-                duration: item.duration || 0,
-                album: item.album?.name || ''
-            }));
+        const formatted = rawResults.map(item => ({
+            videoId: item.videoId,
+            title: item.name,
+            artist: item.artist.name,
+            thumbnail: hiRes(item.thumbnails[0].url),
+            duration: item.duration,
+            album: ''
+        }));
 
         res.json(formatted);
     } catch (err) {
@@ -258,17 +198,22 @@ app.get('/api/search', async (req, res) => {
 });
 
 
-//  Search Suggestions (ytmusic-api)
-
+// ──────────────────────────────────────────────
+//  Search Suggestions (Google Public API)
+// ──────────────────────────────────────────────
 
 app.get('/api/suggestions', async (req, res) => {
     try {
-        if (!ytmusicReady) return res.json([]);
         const query = req.query.q;
         if (!query) return res.json([]);
 
-        const suggestions = await ytmusic.getSearchSuggestions(query);
-        res.json(suggestions || []);
+        const url = `http://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${encodeURIComponent(query)}`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        // Google returns [query, [suggestions...]]
+        const suggestions = data[1] || [];
+        res.json(suggestions);
     } catch (err) {
         console.error('Suggestions error:', err.message);
         res.json([]);
@@ -276,8 +221,9 @@ app.get('/api/suggestions', async (req, res) => {
 });
 
 
+// ──────────────────────────────────────────────
 //  Stream URL (yt-dlp)
-
+// ──────────────────────────────────────────────
 
 app.get('/api/stream/:videoId', async (req, res) => {
     const { videoId } = req.params;
@@ -300,25 +246,23 @@ app.get('/api/stream/:videoId', async (req, res) => {
             return res.status(500).json({ error: 'No audio URL extracted' });
         }
 
-        // Fetch related songs in background (don't block response if it fails)
+        // Fetch related songs using yt-dlp search (by artist + title)
         let relatedStreams = [];
-        if (ytmusicReady) {
-            try {
-                const searchQuery = `${artist} ${title}`.trim();
-                const related = await ytmusic.searchSongs(searchQuery);
-                relatedStreams = (related || [])
-                    .filter(s => s && s.videoId && s.videoId !== videoId)
-                    .slice(0, 15)
-                    .map(s => ({
-                        videoId: s.videoId,
-                        title: s.name || '',
-                        artist: s.artist?.name || 'Unknown',
-                        thumbnail: hiRes(s.thumbnails?.[s.thumbnails.length - 1]?.url || ''),
-                        duration: s.duration || 0
-                    }));
-            } catch (relErr) {
-                console.log(`[STREAM] Related songs fetch failed: ${relErr.message}`);
-            }
+        try {
+            // Search for expanded context
+            const searchQuery = `${artist} ${title} official video`;
+            const related = await searchWithYtDlp(searchQuery, 15);
+            relatedStreams = related
+                .filter(s => s.videoId !== videoId)
+                .map(s => ({
+                    videoId: s.videoId,
+                    title: s.name,
+                    artist: s.artist.name,
+                    thumbnail: hiRes(s.thumbnails[0].url),
+                    duration: s.duration
+                }));
+        } catch (relErr) {
+            console.log(`[STREAM] Related songs fetch failed: ${relErr.message}`);
         }
 
         console.log(`[STREAM] yt-dlp success for ${videoId} (${relatedStreams.length} related)`);
@@ -337,31 +281,37 @@ app.get('/api/stream/:videoId', async (req, res) => {
 });
 
 
-//  Playlist (ytmusic-api)
-
+// ──────────────────────────────────────────────
+//  Playlist (yt-dlp flat)
+// ──────────────────────────────────────────────
 
 app.get('/api/playlist/:playlistId', async (req, res) => {
     try {
-        if (!ytmusicReady) {
-            return res.status(503).json({ error: 'ytmusic-api not ready yet' });
-        }
-
         const { playlistId } = req.params;
-        const data = await ytmusic.getPlaylist(playlistId);
+        const cmd = `yt-dlp --dump-json --flat-playlist "https://www.youtube.com/playlist?list=${playlistId}"`;
+
+        // Increase max buffer for large playgrounds
+        const { stdout } = await execAsync(cmd, { maxBuffer: 1024 * 1024 * 10 });
+
+        const videos = stdout.split('\n')
+            .filter(line => line.trim())
+            .map(line => {
+                try { return JSON.parse(line); } catch { return null; }
+            })
+            .filter(v => v && v.id) // yt-dlp uses 'id' for flat playlist
+            .map(v => ({
+                videoId: v.id,
+                title: v.title || '',
+                artist: v.uploader || 'Unknown',
+                thumbnail: `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`, // Construct standard thumb
+                duration: v.duration || 0
+            }));
 
         res.json({
-            name: data.name || '',
-            thumbnail: hiRes(data.thumbnails?.[data.thumbnails.length - 1]?.url || ''),
+            name: 'Playlist', // yt-dlp flat doesn't easily give playlist metadata in stream
+            thumbnail: videos[0]?.thumbnail || '',
             uploader: '',
-            videos: (data.tracks || [])
-                .filter(v => v && v.videoId)
-                .map(v => ({
-                    videoId: v.videoId || '',
-                    title: v.name || '',
-                    artist: v.artist?.name || '',
-                    thumbnail: hiRes(v.thumbnails?.[v.thumbnails.length - 1]?.url || ''),
-                    duration: v.duration || 0
-                }))
+            videos: videos
         });
     } catch (err) {
         console.error('Playlist error:', err.message);
@@ -369,10 +319,11 @@ app.get('/api/playlist/:playlistId', async (req, res) => {
     }
 });
 
+
 // ──────────────────────────────────────────────
 //  Start
 // ──────────────────────────────────────────────
 
 app.listen(PORT, () => {
-    console.log(`Music Player API running on http://localhost:${PORT}`);
+    console.log(`Music Player API (Pure yt-dlp) running on http://localhost:${PORT}`);
 });
