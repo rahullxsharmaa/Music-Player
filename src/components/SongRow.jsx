@@ -24,10 +24,12 @@ function SongRow({ song, index, showIndex = false }) {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px',
-                padding: '8px 16px',
+                padding: '10px 16px',
                 borderRadius: 'var(--radius-md)',
                 cursor: 'pointer',
-                transition: 'background var(--transition)'
+                transition: 'all var(--transition)',
+                background: isCurrentSong ? 'var(--accent-gradient-subtle)' : 'transparent',
+                borderLeft: isCurrentSong ? '2px solid var(--accent)' : '2px solid transparent'
             }}
             className="hover-card"
         >
@@ -43,7 +45,11 @@ function SongRow({ song, index, showIndex = false }) {
                     isPlaying ? (
                         <button onClick={(e) => { e.stopPropagation(); togglePlay() }}
                             style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-                            <FaPause size={12} />
+                            <div className="equalizer">
+                                <div className="bar" />
+                                <div className="bar" />
+                                <div className="bar" />
+                            </div>
                         </button>
                     ) : (
                         <button onClick={(e) => { e.stopPropagation(); togglePlay() }}
@@ -52,7 +58,7 @@ function SongRow({ song, index, showIndex = false }) {
                         </button>
                     )
                 ) : showIndex ? (
-                    <span>{index + 1}</span>
+                    <span style={{ fontWeight: '500', fontVariantNumeric: 'tabular-nums' }}>{index + 1}</span>
                 ) : (
                     <FaPlay size={10} className="row-play-icon" style={{ opacity: 0, transition: 'opacity var(--transition)' }} />
                 )}
@@ -64,11 +70,13 @@ function SongRow({ song, index, showIndex = false }) {
                 alt={song.title}
                 loading="lazy"
                 style={{
-                    width: '40px',
-                    height: '40px',
+                    width: '44px',
+                    height: '44px',
                     borderRadius: 'var(--radius-sm)',
                     objectFit: 'cover',
-                    flexShrink: 0
+                    flexShrink: 0,
+                    boxShadow: isCurrentSong ? '0 0 12px var(--accent-glow)' : 'none',
+                    transition: 'box-shadow var(--transition)'
                 }}
             />
 
@@ -76,14 +84,16 @@ function SongRow({ song, index, showIndex = false }) {
             <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="text-ellipsis-1" style={{
                     fontSize: '14px',
-                    fontWeight: '400',
-                    color: isCurrentSong ? 'var(--accent)' : 'var(--text-primary)'
+                    fontWeight: isCurrentSong ? '500' : '400',
+                    color: isCurrentSong ? 'var(--accent)' : 'var(--text-primary)',
+                    letterSpacing: '-0.01em'
                 }}>
                     {song.title}
                 </div>
                 <div className="text-ellipsis-1" style={{
                     fontSize: '12px',
-                    color: 'var(--text-secondary)'
+                    color: 'var(--text-secondary)',
+                    marginTop: '2px'
                 }}>
                     {song.artist}
                 </div>
@@ -93,7 +103,8 @@ function SongRow({ song, index, showIndex = false }) {
             <span style={{
                 fontSize: '12px',
                 color: 'var(--text-muted)',
-                flexShrink: 0
+                flexShrink: 0,
+                fontVariantNumeric: 'tabular-nums'
             }}>
                 {formatDuration(song.duration)}
             </span>
@@ -107,7 +118,7 @@ function SongRow({ song, index, showIndex = false }) {
                     alignItems: 'center',
                     flexShrink: 0,
                     padding: '4px',
-                    transition: 'color var(--transition)'
+                    transition: 'color var(--transition), transform var(--transition)'
                 }}
             >
                 {isLiked(song.videoId) ? <GoHeartFill size={16} /> : <GoHeart size={16} />}

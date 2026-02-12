@@ -9,10 +9,29 @@ function Search() {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [suggestions, setSuggestions] = useState([])
+  const [browseCategories, setBrowseCategories] = useState([])
   const [loading, setLoading] = useState(false)
+  const [browseLoading, setBrowseLoading] = useState(true)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const inputRef = useRef(null)
   const debounceRef = useRef(null)
+
+  // Load browse categories on mount
+  useEffect(() => {
+    async function fetchBrowse() {
+      try {
+        setBrowseLoading(true)
+        const res = await fetch(`${API_BASE}/browse`)
+        const data = await res.json()
+        setBrowseCategories(Array.isArray(data) ? data : [])
+      } catch {
+        setBrowseCategories([])
+      } finally {
+        setBrowseLoading(false)
+      }
+    }
+    fetchBrowse()
+  }, [API_BASE])
 
   // Debounced suggestion fetch
   useEffect(() => {
@@ -65,19 +84,33 @@ function Search() {
     handleSearch(text)
   }
 
+  const categoryColors = [
+    'linear-gradient(135deg, #e53935, #ff6f61)',
+    'linear-gradient(135deg, #1db954, #1ed760)',
+    'linear-gradient(135deg, #e91e63, #f06292)',
+    'linear-gradient(135deg, #ff9800, #ffb74d)',
+    'linear-gradient(135deg, #2196f3, #64b5f6)',
+    'linear-gradient(135deg, #9c27b0, #ce93d8)',
+    'linear-gradient(135deg, #00bcd4, #4dd0e1)',
+    'linear-gradient(135deg, #ff5722, #ff8a65)',
+  ]
+
   return (
-    <div className="fade-in" style={{ padding: '24px 32px' }}>
+    <div className="fade-in" style={{ padding: '28px 36px' }}>
       {/* Search Bar */}
-      <div style={{ position: 'relative', maxWidth: '600px', marginBottom: '24px' }}>
+      <div style={{ position: 'relative', maxWidth: '600px', marginBottom: '28px' }}>
         <div style={{
           display: 'flex',
           alignItems: 'center',
           gap: '12px',
-          background: 'var(--bg-surface)',
+          background: 'rgba(26, 26, 26, 0.6)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
           borderRadius: 'var(--radius-full)',
-          padding: '12px 20px',
+          padding: '14px 22px',
           border: '1px solid var(--border)',
-          transition: 'border-color var(--transition)'
+          transition: 'all var(--transition)',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.2)'
         }}>
           <FiSearch size={18} color="var(--text-muted)" />
           <input
@@ -95,13 +128,20 @@ function Search() {
               outline: 'none',
               color: 'var(--text-primary)',
               fontSize: '15px',
-              fontFamily: 'inherit'
+              fontFamily: 'inherit',
+              letterSpacing: '-0.01em'
             }}
           />
           {query && (
             <button
               onClick={() => { setQuery(''); setResults([]); setSuggestions([]); inputRef.current?.focus() }}
-              style={{ color: 'var(--text-muted)', display: 'flex' }}
+              style={{
+                color: 'var(--text-muted)',
+                display: 'flex',
+                padding: '4px',
+                borderRadius: '50%',
+                transition: 'all var(--transition)'
+              }}
             >
               <FiX size={18} />
             </button>
@@ -115,14 +155,16 @@ function Search() {
             top: '100%',
             left: 0,
             right: 0,
-            background: 'var(--bg-surface)',
+            background: 'rgba(20, 20, 20, 0.95)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
             border: '1px solid var(--border)',
             borderRadius: 'var(--radius-md)',
-            marginTop: '4px',
+            marginTop: '6px',
             zIndex: 50,
             maxHeight: '300px',
             overflowY: 'auto',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+            boxShadow: '0 12px 48px rgba(0,0,0,0.5)'
           }}>
             {suggestions.map((s, i) => {
               const text = typeof s === 'string' ? s : s.term || s.query || ''
@@ -131,13 +173,13 @@ function Search() {
                   key={i}
                   onClick={() => handleSuggestionClick(text)}
                   style={{
-                    padding: '10px 16px',
+                    padding: '11px 18px',
                     fontSize: '14px',
                     color: 'var(--text-primary)',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '10px',
+                    gap: '12px',
                     transition: 'background var(--transition)'
                   }}
                   className="hover-card"
@@ -155,7 +197,7 @@ function Search() {
       {loading && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="skeleton" style={{ height: '56px', borderRadius: 'var(--radius-md)' }} />
+            <div key={i} className="skeleton" style={{ height: '60px', borderRadius: 'var(--radius-md)' }} />
           ))}
         </div>
       )}
@@ -163,7 +205,12 @@ function Search() {
       {/* Results */}
       {!loading && results.length > 0 && (
         <div>
-          <h2 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '12px' }}>
+          <h2 style={{
+            fontSize: '18px',
+            fontWeight: '700',
+            marginBottom: '16px',
+            letterSpacing: '-0.02em'
+          }}>
             Results for "{query}"
           </h2>
           {/* Top Result Card */}
@@ -175,11 +222,12 @@ function Search() {
                 alignItems: 'center',
                 gap: '20px',
                 padding: '20px',
-                background: 'var(--bg-surface)',
+                background: 'var(--accent-gradient-subtle)',
                 borderRadius: 'var(--radius-lg)',
-                marginBottom: '20px',
+                marginBottom: '24px',
                 cursor: 'pointer',
-                transition: 'background var(--transition)'
+                transition: 'all var(--transition)',
+                border: '1px solid rgba(229, 57, 53, 0.1)'
               }}
               className="hover-card"
             >
@@ -187,17 +235,31 @@ function Search() {
                 src={results[0].thumbnail}
                 alt={results[0].title}
                 style={{
-                  width: '80px',
-                  height: '80px',
+                  width: '88px',
+                  height: '88px',
                   borderRadius: 'var(--radius-md)',
-                  objectFit: 'cover'
+                  objectFit: 'cover',
+                  boxShadow: 'var(--shadow-md)'
                 }}
               />
               <div>
-                <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>
+                <div style={{
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  color: 'var(--accent)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1.5px',
+                  marginBottom: '6px'
+                }}>
                   Top Result
                 </div>
-                <div style={{ fontSize: '22px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                <div style={{
+                  fontSize: '22px',
+                  fontWeight: '700',
+                  color: 'var(--text-primary)',
+                  marginBottom: '4px',
+                  letterSpacing: '-0.02em'
+                }}>
                   {results[0].title}
                 </div>
                 <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
@@ -208,40 +270,174 @@ function Search() {
           )}
 
           {/* Song List */}
-          <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>Songs</h3>
+          <h3 style={{
+            fontSize: '16px',
+            fontWeight: '700',
+            marginBottom: '8px',
+            letterSpacing: '-0.02em'
+          }}>Songs</h3>
           {results.slice(1).map((song, i) => (
             <SongRow key={song.videoId + i} song={song} index={i} />
           ))}
         </div>
       )}
 
-      {/* Empty State */}
+      {/* Empty Results */}
       {!loading && results.length === 0 && query && (
         <div style={{
           textAlign: 'center',
           padding: '60px 20px',
           color: 'var(--text-muted)'
         }}>
-          <FiSearch size={48} style={{ marginBottom: '16px', opacity: 0.3 }} />
-          <p style={{ fontSize: '16px' }}>No results found</p>
-          <p style={{ fontSize: '13px', marginTop: '4px' }}>Try a different search term</p>
+          <FiSearch size={48} style={{ marginBottom: '16px', opacity: 0.2 }} />
+          <p style={{ fontSize: '16px', fontWeight: '500' }}>No results found</p>
+          <p style={{ fontSize: '13px', marginTop: '4px', opacity: 0.6 }}>Try a different search term</p>
         </div>
       )}
 
-      {/* Initial State */}
+      {/* Browse Categories — shown when no search */}
       {!loading && results.length === 0 && !query && (
-        <div style={{
-          textAlign: 'center',
-          padding: '80px 20px',
-          color: 'var(--text-muted)'
-        }}>
-          <FiSearch size={48} style={{ marginBottom: '16px', opacity: 0.3 }} />
-          <p style={{ fontSize: '16px' }}>Search for your favorite music</p>
-          <p style={{ fontSize: '13px', marginTop: '4px' }}>Find songs, artists, and albums</p>
+        <div>
+          <h2 style={{
+            fontSize: '22px',
+            fontWeight: '700',
+            marginBottom: '20px',
+            letterSpacing: '-0.02em'
+          }}>
+            Browse
+          </h2>
+
+          {browseLoading ? (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+              gap: '16px'
+            }}>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="skeleton" style={{ height: '100px', borderRadius: 'var(--radius-lg)' }} />
+              ))}
+            </div>
+          ) : browseCategories.length > 0 ? (
+            <>
+              {/* Category Cards Grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                gap: '16px',
+                marginBottom: '36px'
+              }}>
+                {browseCategories.map((cat, i) => (
+                  <div
+                    key={cat.name}
+                    onClick={() => {
+                      setQuery(cat.name)
+                      handleSearch(cat.name)
+                    }}
+                    style={{
+                      background: categoryColors[i % categoryColors.length],
+                      borderRadius: 'var(--radius-lg)',
+                      padding: '20px',
+                      cursor: 'pointer',
+                      minHeight: '100px',
+                      display: 'flex',
+                      alignItems: 'flex-end',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      transition: 'transform var(--transition), box-shadow var(--transition)'
+                    }}
+                    className="browse-card"
+                  >
+                    <span style={{
+                      fontSize: '18px',
+                      fontWeight: '700',
+                      color: 'white',
+                      letterSpacing: '-0.02em',
+                      textShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                      zIndex: 1
+                    }}>
+                      {cat.name}
+                    </span>
+                    {/* Decorative thumbnail */}
+                    {cat.songs[0]?.thumbnail && (
+                      <img
+                        src={cat.songs[0].thumbnail}
+                        alt=""
+                        style={{
+                          position: 'absolute',
+                          right: '-10px',
+                          top: '-10px',
+                          width: '80px',
+                          height: '80px',
+                          borderRadius: 'var(--radius-md)',
+                          objectFit: 'cover',
+                          transform: 'rotate(15deg)',
+                          opacity: 0.5,
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+                        }}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Category song lists */}
+              {browseCategories.map(cat => (
+                <div key={cat.name + '-songs'} style={{ marginBottom: '32px' }}>
+                  <h3 style={{
+                    fontSize: '18px',
+                    fontWeight: '700',
+                    marginBottom: '12px',
+                    letterSpacing: '-0.02em',
+                    position: 'relative',
+                    display: 'inline-block'
+                  }}>
+                    {cat.name}
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '-4px',
+                      left: 0,
+                      width: '28px',
+                      height: '2px',
+                      background: 'var(--accent-gradient)',
+                      borderRadius: '1px'
+                    }} />
+                  </h3>
+                  <div style={{
+                    display: 'flex',
+                    gap: '4px',
+                    overflowX: 'auto',
+                    paddingBottom: '8px',
+                    scrollbarWidth: 'none'
+                  }}>
+                    {cat.songs.map(song => (
+                      <Card key={song.videoId} song={song} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </>
+          ) : (
+            <div style={{
+              textAlign: 'center',
+              padding: '60px 20px',
+              color: 'var(--text-muted)'
+            }}>
+              <FiSearch size={48} style={{ marginBottom: '16px', opacity: 0.2 }} />
+              <p style={{ fontSize: '16px', fontWeight: '500' }}>Search for your favorite music</p>
+              <p style={{ fontSize: '13px', marginTop: '6px', opacity: 0.6 }}>Find songs, artists, and albums</p>
+            </div>
+          )}
         </div>
       )}
 
       <div style={{ height: '40px' }} />
+
+      <style>{`
+        .browse-card:hover {
+          transform: scale(1.03);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+      `}</style>
     </div>
   )
 }
