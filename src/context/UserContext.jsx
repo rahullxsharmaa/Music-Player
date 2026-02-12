@@ -24,6 +24,7 @@ function PlayerProvider({ children }) {
     // ── Queue ──
     const [queue, setQueue] = useState([])
     const [queueIndex, setQueueIndex] = useState(-1)
+    const [showQueue, setShowQueue] = useState(false)
 
     // ── Modes ──
     const [shuffle, setShuffle] = useState(false)
@@ -133,9 +134,22 @@ function PlayerProvider({ children }) {
                 ...prev,
                 thumbnail: prev.thumbnail || data.thumbnail,
                 artist: prev.artist || data.artist,
-                duration: data.duration || prev.duration,
-                relatedStreams: data.relatedStreams || []
+                duration: data.duration || prev.duration
             }))
+
+            // Auto-queue related songs if nothing left in queue
+            if (data.relatedStreams && data.relatedStreams.length > 0) {
+                setQueue(prev => {
+                    const currentIdx = prev.findIndex(s => s.videoId === song.videoId)
+                    const remaining = currentIdx >= 0 ? prev.length - currentIdx - 1 : 0
+                    if (remaining <= 0) {
+                        const existingIds = new Set(prev.map(s => s.videoId))
+                        const newSongs = data.relatedStreams.filter(s => !existingIds.has(s.videoId))
+                        return newSongs.length > 0 ? [...prev, ...newSongs] : prev
+                    }
+                    return prev
+                })
+            }
         } catch (err) {
             console.error('Failed to play:', err)
             setError(`Failed to stream. Trying next...`)
@@ -309,7 +323,8 @@ function PlayerProvider({ children }) {
         toggleShuffle, toggleRepeat,
         // Library
         likedSongs, isLiked, toggleLike,
-        playlists, createPlaylist, addToPlaylist, removeFromPlaylist, deletePlaylist,
+        playlists, createPlaylist, addToPlaylist,
+        showQueue, setShowQueue,
         // API
         API_BASE
     }

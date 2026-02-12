@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import React from 'react'
+import { usePlayer } from './context/UserContext'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import Nav from './components/Nav'
 import PlayerBar from './components/PlayerBar'
@@ -10,7 +11,7 @@ import Like from './pages/Like'
 import Playlist from './pages/Playlist'
 
 const App = () => {
-  const [showQueue, setShowQueue] = useState(false)
+  const { showQueue, setShowQueue } = usePlayer()
 
   return (
     <BrowserRouter>

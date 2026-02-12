@@ -32,27 +32,27 @@ function Home() {
   const moreTrending = trending.slice(8, 16)
 
   return (
-    <div className="fade-in" style={{ padding: '24px 32px' }}>
+    <div className="fade-in" style={{ padding: '28px 36px' }}>
       {/* Header */}
       <h1 style={{
-        fontSize: '28px',
-        fontWeight: '700',
-        marginBottom: '24px',
-        color: 'var(--text-primary)'
+        fontSize: '32px',
+        fontWeight: '800',
+        marginBottom: '28px',
+        letterSpacing: '-0.03em'
       }}>
-        Good {getTimeGreeting()}
+        Good <span className="gradient-text">{getTimeGreeting()}</span>
       </h1>
 
       {/* Error State */}
       {error && (
         <div style={{
-          padding: '16px 20px',
-          background: 'var(--bg-surface)',
+          padding: '14px 20px',
+          background: 'rgba(239, 68, 68, 0.1)',
           borderRadius: 'var(--radius-md)',
-          color: 'var(--text-secondary)',
+          color: '#fca5a5',
           fontSize: '14px',
           marginBottom: '24px',
-          border: '1px solid var(--border)'
+          border: '1px solid rgba(239, 68, 68, 0.2)'
         }}>
           {error}
         </div>
@@ -63,7 +63,7 @@ function Home() {
         {loading ? (
           <div style={{ display: 'flex', gap: '8px' }}>
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="skeleton" style={{ width: '180px', height: '240px', flexShrink: 0 }} />
+              <div key={i} className="skeleton" style={{ width: '180px', height: '260px', flexShrink: 0 }} />
             ))}
           </div>
         ) : (
@@ -86,7 +86,7 @@ function Home() {
         {loading ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="skeleton" style={{ height: '56px', borderRadius: 'var(--radius-md)' }} />
+              <div key={i} className="skeleton" style={{ height: '60px', borderRadius: 'var(--radius-md)' }} />
             ))}
           </div>
         ) : (
@@ -123,14 +123,26 @@ function Home() {
 
 function Section({ title, children }) {
   return (
-    <div style={{ marginBottom: '32px' }}>
+    <div style={{ marginBottom: '36px' }}>
       <h2 style={{
         fontSize: '20px',
-        fontWeight: '600',
+        fontWeight: '700',
         marginBottom: '16px',
-        color: 'var(--text-primary)'
+        color: 'var(--text-primary)',
+        letterSpacing: '-0.02em',
+        position: 'relative',
+        display: 'inline-block'
       }}>
         {title}
+        <div style={{
+          position: 'absolute',
+          bottom: '-4px',
+          left: 0,
+          width: '32px',
+          height: '2px',
+          background: 'var(--accent-gradient)',
+          borderRadius: '1px'
+        }} />
       </h2>
       {children}
     </div>

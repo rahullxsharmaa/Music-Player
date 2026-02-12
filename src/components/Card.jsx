@@ -18,8 +18,8 @@ function Card({ song, size = 'normal' }) {
                 width: isSmall ? '160px' : '180px',
                 cursor: 'pointer',
                 padding: '12px',
-                borderRadius: 'var(--radius-md)',
-                transition: 'background var(--transition)',
+                borderRadius: 'var(--radius-lg)',
+                transition: 'all var(--transition)',
                 flexShrink: 0,
                 position: 'relative'
             }}
@@ -32,8 +32,10 @@ function Card({ song, size = 'normal' }) {
                 borderRadius: 'var(--radius-md)',
                 overflow: 'hidden',
                 position: 'relative',
-                marginBottom: '10px',
-                boxShadow: isCurrentSong ? '0 0 0 2px var(--accent)' : 'none'
+                marginBottom: '12px',
+                boxShadow: isCurrentSong
+                    ? '0 0 0 2px var(--accent), 0 0 20px var(--accent-glow)'
+                    : 'var(--shadow-sm)'
             }}>
                 <img
                     src={song.thumbnail}
@@ -43,32 +45,60 @@ function Card({ song, size = 'normal' }) {
                         width: '100%',
                         height: '100%',
                         objectFit: 'cover',
-                        transition: 'transform var(--transition)'
+                        transition: 'transform var(--transition), filter var(--transition)'
                     }}
                 />
-                {/* Play overlay */}
+                {/* Gradient overlay */}
                 <div style={{
                     position: 'absolute',
                     inset: 0,
-                    background: 'rgba(0,0,0,0.4)',
+                    background: 'linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.6) 100%)',
+                    opacity: 0,
+                    transition: 'opacity var(--transition)'
+                }} className="card-overlay" />
+                {/* Play button */}
+                <div style={{
+                    position: 'absolute',
+                    inset: 0,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     opacity: 0,
-                    transition: 'opacity var(--transition)'
-                }} className="card-overlay">
+                    transition: 'opacity var(--transition), transform var(--transition)',
+                    transform: 'translateY(8px)'
+                }} className="card-play-btn">
                     <div style={{
-                        width: '40px',
-                        height: '40px',
+                        width: '44px',
+                        height: '44px',
                         borderRadius: '50%',
-                        background: 'var(--accent)',
+                        background: 'var(--accent-gradient)',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center'
+                        justifyContent: 'center',
+                        boxShadow: '0 4px 16px var(--accent-glow)',
+                        transition: 'transform var(--transition-spring)'
                     }}>
                         <FaPlay size={16} color="white" style={{ marginLeft: '2px' }} />
                     </div>
                 </div>
+                {/* Currently playing indicator */}
+                {isCurrentSong && isPlaying && (
+                    <div style={{
+                        position: 'absolute',
+                        bottom: '8px',
+                        left: '8px',
+                        padding: '4px 8px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(0,0,0,0.7)',
+                        backdropFilter: 'blur(8px)'
+                    }}>
+                        <div className="equalizer">
+                            <div className="bar" />
+                            <div className="bar" />
+                            <div className="bar" />
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Info */}
@@ -76,7 +106,8 @@ function Card({ song, size = 'normal' }) {
                 fontSize: '14px',
                 fontWeight: '500',
                 color: isCurrentSong ? 'var(--accent)' : 'var(--text-primary)',
-                marginBottom: '4px'
+                marginBottom: '4px',
+                letterSpacing: '-0.01em'
             }}>
                 {song.title}
             </div>
@@ -99,7 +130,8 @@ function Card({ song, size = 'normal' }) {
                         display: 'flex',
                         alignItems: 'center',
                         flexShrink: 0,
-                        padding: '4px'
+                        padding: '4px',
+                        transition: 'color var(--transition), transform var(--transition)'
                     }}
                 >
                     {isLiked(song.videoId) ? <GoHeartFill size={14} /> : <GoHeart size={14} />}
@@ -110,8 +142,13 @@ function Card({ song, size = 'normal' }) {
         .hover-card:hover .card-overlay {
           opacity: 1 !important;
         }
+        .hover-card:hover .card-play-btn {
+          opacity: 1 !important;
+          transform: translateY(0) !important;
+        }
         .hover-card:hover img {
           transform: scale(1.05);
+          filter: brightness(0.8);
         }
       `}</style>
         </div>
