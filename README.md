@@ -85,4 +85,4 @@ Open `http://localhost:5173` in your browser.
 - **Songs not playing** - Ensure yt-dlp is installed and accessible in your PATH.
 - **No trending content** - Wait for the `[OK] ytmusic-api initialized` message before loading the frontend.
 
-## Developed by *johnwick's himself*
+## Developed by *johnwick himself*
